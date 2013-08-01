@@ -1,0 +1,12 @@
+/Build
+/Build.bat
+/Build.PL
+/B-Replace*
+/META.*
+/MYMETA.*
+/_build
+/.build
+/blib
+/buildtmp
+/pod2htm?.tmp
+*.o
