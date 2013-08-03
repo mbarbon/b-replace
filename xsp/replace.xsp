@@ -1,0 +1,25 @@
+%module{B::Replace};
+
+%package{B::Replace};
+
+#include "replace.h"
+
+TRACEOP *trace_op(OP *next);
+
+void replace_op(OP *root, OP *original, OP *replacement, bool keep = false);
+void replace_tree(OP *root, OP *original, OP *replacement, bool keep = false);
+
+%name{B::TRACEOP} class TRACEOP : public %name{B::OP} OP
+{
+    %accessors{ %get_style{no_prefix}; };
+
+    int count %get;
+};
+
+%{
+
+BOOT:
+    register_op(aTHX);
+
+%}
+        
