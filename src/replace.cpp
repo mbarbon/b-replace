@@ -7,6 +7,7 @@
 
 struct OpInfo
 {
+    // TODO some OPs have multiple predecessors (end of conditional branches)
     OP *pred;
     OP *older_sibling;
     OP *parent;
