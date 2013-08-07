@@ -39,7 +39,7 @@ void register_op(pTHX)
 #if PERL_API_VERSION >= 14
     XopENTRY_set(&trace_xop, xop_name, "myxop");
     XopENTRY_set(&trace_xop, xop_desc, "Useless custom op");
-    XopENTRY_set(&tarce_xop, xop_class, OA_BASEOP);
+    XopENTRY_set(&trace_xop, xop_class, OA_BASEOP);
 
     Perl_custom_op_register(aTHX_ trace_pp, &trace_xop);
 #endif
