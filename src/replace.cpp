@@ -45,8 +45,9 @@ void register_op(pTHX)
 #endif
 }
 
-TRACEOP *trace_op(pTHX_ OP *next)
+TRACEOP *trace_op(OP *next)
 {
+    dTHX;
     TRACEOP *op;
 
     NewOp(1101, op, 1, TRACEOP);
@@ -208,9 +209,9 @@ void fill_parent(OP *op, OP *kid, LinkInfo &links)
     links[kid].parent = op;
 }
 
-void fill_linkinfo(OP *op, LinkInfo &links);
+void fill_linkinfo(pTHX_ OP *op, LinkInfo &links);
 
-void fill_older_sibling(OP *firstborn, LinkInfo &links)
+void fill_older_sibling(pTHX_ OP *firstborn, LinkInfo &links)
 {
     OP *pred = 0, *curr = firstborn;
 
@@ -218,25 +219,25 @@ void fill_older_sibling(OP *firstborn, LinkInfo &links)
     {
         if (pred)
             links[curr].older_sibling = pred;
-        fill_linkinfo(curr, links);
+        fill_linkinfo(aTHX_ curr, links);
 
         pred = curr;
         curr = curr->op_sibling;
     }
 }
 
-void fill_linkinfo(OP *op, LinkInfo &links)
+void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 {
     fill_pred(op, op->op_next, links);
 
-    switch (cc_opclass(op))
+    switch (cc_opclass(aTHX_ op))
     {
     case OPc_UNOP:
     {
         UNOP *unop = (UNOP *)op;
 
         fill_parent(op, unop->op_first, links);
-        fill_linkinfo(unop->op_first, links);
+        fill_linkinfo(aTHX_ unop->op_first, links);
     }
         break;
     case OPc_BINOP:
@@ -246,8 +247,8 @@ void fill_linkinfo(OP *op, LinkInfo &links)
         fill_parent(op, binop->op_first, links);
         fill_parent(op, binop->op_last, links);
 
-        fill_linkinfo(binop->op_first, links);
-        fill_linkinfo(binop->op_last, links);
+        fill_linkinfo(aTHX_ binop->op_first, links);
+        fill_linkinfo(aTHX_ binop->op_last, links);
     }
         break;
     case OPc_LOGOP:
@@ -257,8 +258,8 @@ void fill_linkinfo(OP *op, LinkInfo &links)
         fill_parent(op, logop->op_first, links);
         fill_parent(op, logop->op_other, links);
 
-        fill_linkinfo(logop->op_first, links);
-        fill_linkinfo(logop->op_other, links);
+        fill_linkinfo(aTHX_ logop->op_first, links);
+        fill_linkinfo(aTHX_ logop->op_other, links);
     }
         break;
     case OPc_LISTOP:
@@ -267,7 +268,7 @@ void fill_linkinfo(OP *op, LinkInfo &links)
 
         fill_parent(op, listop->op_first, links);
         fill_parent(op, listop->op_last, links);
-        fill_older_sibling(listop->op_first, links);
+        fill_older_sibling(aTHX_ listop->op_first, links);
     }
         break;
     case OPc_PMOP:
@@ -276,7 +277,7 @@ void fill_linkinfo(OP *op, LinkInfo &links)
 
         fill_parent(op, pmop->op_first, links);
         fill_parent(op, pmop->op_last, links);
-        fill_older_sibling(pmop->op_first, links);
+        fill_older_sibling(aTHX_ pmop->op_first, links);
 
         // ignore pmrepl stuff
     }
@@ -287,7 +288,7 @@ void fill_linkinfo(OP *op, LinkInfo &links)
 
         fill_parent(op, loop->op_first, links);
         fill_parent(op, loop->op_last, links);
-        fill_older_sibling(loop->op_first, links);
+        fill_older_sibling(aTHX_ loop->op_first, links);
     }
         break;
     case OPc_NULL:
@@ -300,13 +301,13 @@ void fill_linkinfo(OP *op, LinkInfo &links)
     }
 }
 
-void replace_child(OP *op, OP *original, OP *replacement)
+void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
 {
 #define REPLACE_IF(op, member) \
     if ((op)->member == original)               \
         (op)->member = replacement
 
-    switch (cc_opclass(op))
+    switch (cc_opclass(aTHX_ op))
     {
     case OPc_UNOP:
     {
@@ -369,18 +370,19 @@ void replace_child(OP *op, OP *original, OP *replacement)
 #undef REPLACE_IF
 }
 
-void replace_op(pTHX_ OP *root, OP *original, OP *replacement, bool keep)
+void replace_op(OP *root, OP *original, OP *replacement, bool keep)
 {
+    dTHX;
     LinkInfo links;
 
-    fill_linkinfo(root, links);
+    fill_linkinfo(aTHX_ root, links);
 
     OpInfo opinfo = links[original];
 
     if (opinfo.pred)
         opinfo.pred->op_next = replacement;
     if (opinfo.parent)
-        replace_child(opinfo.parent, original, replacement);
+        replace_child(aTHX_ opinfo.parent, original, replacement);
     if (opinfo.older_sibling)
         opinfo.older_sibling->op_sibling = replacement;
 
@@ -388,15 +390,15 @@ void replace_op(pTHX_ OP *root, OP *original, OP *replacement, bool keep)
         op_free(original);
 }
 
-void tree_nodes(OP *op, OpVector &accumulator)
+void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
 {
 #define ACCUMULATE(op, member)                   \
-    tree_nodes(op->member, accumulator)
+    tree_nodes(aTHX_ op->member, accumulator)
 
     if (op->op_type != OP_NULL)
         accumulator.push_back(op);
 
-    switch (cc_opclass(op))
+    switch (cc_opclass(aTHX_ op))
     {
     case OPc_UNOP:
     {
@@ -459,14 +461,15 @@ void tree_nodes(OP *op, OpVector &accumulator)
 #undef ACCUMULATE
 }
 
-void replace_tree(pTHX_ OP *root, OP *original, OP *replacement, bool keep)
+void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 {
+    dTHX;
     LinkInfo links;
     OpVector nodes;
     OpSet tree_pred;
 
-    fill_linkinfo(root, links);
-    tree_nodes(original, nodes);
+    fill_linkinfo(aTHX_ root, links);
+    tree_nodes(aTHX_ original, nodes);
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
@@ -484,7 +487,7 @@ void replace_tree(pTHX_ OP *root, OP *original, OP *replacement, bool keep)
     if (tree_pred.size())
         (*tree_pred.begin())->op_next = replacement;
     if (opinfo.parent)
-        replace_child(opinfo.parent, original, replacement);
+        replace_child(aTHX_ opinfo.parent, original, replacement);
     if (opinfo.older_sibling)
         opinfo.older_sibling->op_sibling = replacement;
 

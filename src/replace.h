@@ -10,10 +10,10 @@ struct TRACEOP
     int count;
 };
 
-TRACEOP *trace_op(pTHX_ OP *next);
+TRACEOP *trace_op(OP *next);
 void register_op(pTHX);
 
-void replace_op(pTHX_ OP *root, OP *original, OP *replacement, bool keep = false);
-void replace_tree(pTHX_ OP *root, OP *original, OP *replacement, bool keep = false);
+void replace_op(OP *root, OP *original, OP *replacement, bool keep = false);
+void replace_tree(OP *root, OP *original, OP *replacement, bool keep = false);
 
 #endif // _B_REPLACE_H
