@@ -473,7 +473,8 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
-        tree_pred.insert(links[*it].pred);
+        if (links[*it].pred)
+            tree_pred.insert(links[*it].pred);
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
