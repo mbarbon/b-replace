@@ -195,7 +195,7 @@ cc_opclass(pTHX_ const OP *o)
 
 void fill_pred(OP *op, OP *next, LinkInfo &links)
 {
-    if (!next)
+    if (!next || op->op_type == 0)
         return;
 
     links[next].pred = op;
