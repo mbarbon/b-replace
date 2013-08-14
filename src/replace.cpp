@@ -496,5 +496,13 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
     replacement->op_sibling = original->op_sibling;
 
     if (!keep)
+    {
+        // TODO this code is becoming so tied to Perl::JIT that
+        //      it makes a lot of sense to just move it
+        for (OpVector::iterator it = nodes.begin(), end = nodes.end();
+             it != end; ++it)
+            (*it)->op_targ = 0;
+
         op_free(original);
+    }
 }
