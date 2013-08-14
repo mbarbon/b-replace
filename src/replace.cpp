@@ -492,6 +492,9 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
     if (opinfo.older_sibling)
         opinfo.older_sibling->op_sibling = replacement;
 
+    replacement->op_next = original->op_next;
+    replacement->op_sibling = original->op_sibling;
+
     if (!keep)
         op_free(original);
 }
