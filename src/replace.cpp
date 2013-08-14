@@ -506,3 +506,13 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
         op_free(original);
     }
 }
+
+void detach_tree(OP *root, OP *original, bool keep)
+{
+    dTHX;
+    OP *o;
+
+    NewOp(42, o, 1, OP);
+    o->op_type = OP_STUB;
+    replace_tree(root, original, o, keep);
+}

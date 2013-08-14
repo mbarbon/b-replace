@@ -15,5 +15,6 @@ void register_op(pTHX);
 
 void replace_op(OP *root, OP *original, OP *replacement, bool keep = false);
 void replace_tree(OP *root, OP *original, OP *replacement, bool keep = false);
+void detach_tree(OP *root, OP *original, bool keep = false);
 
 #endif // _B_REPLACE_H
