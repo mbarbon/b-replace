@@ -513,6 +513,8 @@ void detach_tree(OP *root, OP *original, bool keep)
     OP *o;
 
     NewOp(42, o, 1, OP);
+    o->op_flags = OPf_WANT_VOID;
     o->op_type = OP_STUB;
+    o->op_ppaddr = PL_ppaddr[OP_STUB];
     replace_tree(root, original, o, keep);
 }
