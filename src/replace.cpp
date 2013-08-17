@@ -377,7 +377,10 @@ void replace_op(OP *root, OP *original, OP *replacement, bool keep)
 
     fill_linkinfo(aTHX_ root, links);
 
-    OpInfo opinfo = links[original];
+    LinkInfo::iterator it = links.find(original);
+    if (it == links.end())
+        croak("Did not find original op in the tree");
+    OpInfo opinfo = it->second;
 
     if (opinfo.pred)
         opinfo.pred->op_next = replacement;
@@ -469,6 +472,12 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
     OpSet tree_pred;
 
     fill_linkinfo(aTHX_ root, links);
+
+    LinkInfo::iterator it = links.find(original);
+    if (it == links.end())
+        croak("Did not find original op in the tree");
+    OpInfo opinfo = it->second;
+
     tree_nodes(aTHX_ original, nodes);
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
@@ -482,8 +491,6 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 
     if (tree_pred.size() > 1)
         croak("Found %d predecessor for the tree, 1 expected", tree_pred.size());
-
-    OpInfo opinfo = links[original];
 
     if (tree_pred.size())
         (*tree_pred.begin())->op_next = replacement;
