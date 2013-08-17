@@ -395,73 +395,14 @@ void replace_op(OP *root, OP *original, OP *replacement, bool keep)
 
 void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
 {
-#define ACCUMULATE(op, member)                   \
-    tree_nodes(aTHX_ op->member, accumulator)
-
     if (op->op_type != OP_NULL)
         accumulator.push_back(op);
 
-    switch (cc_opclass(aTHX_ op))
+    if (op->op_flags & OPf_KIDS)
     {
-    case OPc_UNOP:
-    {
-        UNOP *unop = (UNOP *)op;
-
-        ACCUMULATE(unop, op_first);
+        for (OP *curr = cUNOPx(op)->op_first; curr; curr = curr->op_sibling)
+            tree_nodes(aTHX_ curr, accumulator);
     }
-        break;
-    case OPc_BINOP:
-    {
-        BINOP *binop = (BINOP *)op;
-
-        ACCUMULATE(binop, op_first);
-        ACCUMULATE(binop, op_last);
-    }
-        break;
-    case OPc_LOGOP:
-    {
-        LOGOP *logop = (LOGOP *)op;
-
-        ACCUMULATE(logop, op_first);
-        ACCUMULATE(logop, op_other);
-    }
-        break;
-    case OPc_LISTOP:
-    {
-        LISTOP *listop = (LISTOP *)op;
-
-        ACCUMULATE(listop, op_first);
-        ACCUMULATE(listop, op_last);
-    }
-        break;
-    case OPc_PMOP:
-    {
-        PMOP *pmop = (PMOP *)op;
-
-        ACCUMULATE(pmop, op_first);
-        ACCUMULATE(pmop, op_last);
-
-        // ignore pmrepl stuff
-    }
-        break;
-    case OPc_LOOP:
-    {
-        LOOP *loop = (LOOP *)op;
-
-        ACCUMULATE(loop, op_first);
-        ACCUMULATE(loop, op_last);
-    }
-        break;
-    case OPc_NULL:
-    case OPc_BASEOP:
-    case OPc_SVOP:
-    case OPc_PADOP:
-    case OPc_PVOP:
-    case OPc_COP:
-        assert(0);
-        break;
-    }
-#undef ACCUMULATE
 }
 
 void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
