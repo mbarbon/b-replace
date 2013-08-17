@@ -230,6 +230,9 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 {
     fill_pred(op, op->op_next, links);
 
+    if (op->op_flags & OPf_KIDS)
+        fill_older_sibling(aTHX_ cUNOPx(op)->op_first, links);
+
     switch (cc_opclass(aTHX_ op))
     {
     case OPc_UNOP:
@@ -237,7 +240,6 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
         UNOP *unop = (UNOP *)op;
 
         fill_parent(op, unop->op_first, links);
-        fill_linkinfo(aTHX_ unop->op_first, links);
     }
         break;
     case OPc_BINOP:
@@ -246,20 +248,15 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_parent(op, binop->op_first, links);
         fill_parent(op, binop->op_last, links);
-
-        fill_linkinfo(aTHX_ binop->op_first, links);
-        fill_linkinfo(aTHX_ binop->op_last, links);
     }
         break;
     case OPc_LOGOP:
     {
         LOGOP *logop = (LOGOP *)op;
 
+        fill_pred(op, logop->op_other, links);
         fill_parent(op, logop->op_first, links);
         fill_parent(op, logop->op_other, links);
-
-        fill_linkinfo(aTHX_ logop->op_first, links);
-        fill_linkinfo(aTHX_ logop->op_other, links);
     }
         break;
     case OPc_LISTOP:
@@ -268,7 +265,6 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_parent(op, listop->op_first, links);
         fill_parent(op, listop->op_last, links);
-        fill_older_sibling(aTHX_ listop->op_first, links);
     }
         break;
     case OPc_PMOP:
@@ -277,7 +273,6 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_parent(op, pmop->op_first, links);
         fill_parent(op, pmop->op_last, links);
-        fill_older_sibling(aTHX_ pmop->op_first, links);
 
         // ignore pmrepl stuff
     }
@@ -288,7 +283,6 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_parent(op, loop->op_first, links);
         fill_parent(op, loop->op_last, links);
-        fill_older_sibling(aTHX_ loop->op_first, links);
     }
         break;
     case OPc_NULL:
