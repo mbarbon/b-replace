@@ -1,6 +1,7 @@
 /Build
 /Build.bat
 /Build.PL
+/dev_Build.PL
 /B-Replace*
 /META.*
 /MYMETA.*
