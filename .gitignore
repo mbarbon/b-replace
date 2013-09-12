@@ -10,3 +10,4 @@
 /buildtmp
 /pod2htm?.tmp
 *.o
+*.sw[po]
