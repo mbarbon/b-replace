@@ -411,6 +411,11 @@ void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
 
 void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 {
+    replace_sequence(root, original, original, replacement, keep);
+}
+
+void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+{
     dTHX;
     LinkInfo links;
     OpVector nodes;
@@ -418,17 +423,26 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 
     fill_linkinfo(aTHX_ root, links);
 
-    LinkInfo::iterator it = links.find(original);
-    if (it == links.end())
-        croak("Did not find original op in the tree");
-    OpInfo opinfo = it->second;
+    LinkInfo::iterator start_seq_it = links.find(orig_seq_start);
+    if (start_seq_it == links.end())
+        croak("Did not find original start op in the tree");
+    OpInfo start_opinfo = start_seq_it->second;
 
-    tree_nodes(aTHX_ original, nodes);
+    LinkInfo::iterator end_seq_it = links.find(orig_seq_end);
+    if (end_seq_it == links.end())
+        croak("Did not find original end op in the tree");
+
+    OP *o = orig_seq_start;
+    do {
+	tree_nodes(aTHX_ o, nodes);
+    } while (o != orig_seq_end && (o = o->op_sibling));
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
+    {
         if (links[*it].pred)
             tree_pred.insert(std::make_pair(links[*it].pred, *it));
+    }
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
@@ -439,13 +453,15 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 
     if (tree_pred.size())
         replace_next(aTHX_ tree_pred.begin()->first, tree_pred.begin()->second, replacement);
-    if (opinfo.parent)
-        replace_child(aTHX_ opinfo.parent, original, replacement);
-    if (opinfo.older_sibling)
-        opinfo.older_sibling->op_sibling = replacement;
+    if (start_opinfo.parent)
+        replace_child(aTHX_ start_opinfo.parent, orig_seq_start, replacement);
+    if (start_opinfo.parent)
+        replace_child(aTHX_ start_opinfo.parent, orig_seq_end, replacement);
+    if (start_opinfo.older_sibling)
+        start_opinfo.older_sibling->op_sibling = replacement;
 
-    replacement->op_next = original->op_next;
-    replacement->op_sibling = original->op_sibling;
+    replacement->op_next = orig_seq_end->op_next;
+    replacement->op_sibling = orig_seq_end->op_sibling;
 
     if (!keep)
     {
@@ -455,7 +471,13 @@ void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
              it != end; ++it)
             (*it)->op_targ = 0;
 
-        op_free(original);
+	OP *o = orig_seq_start;
+	OP *next;
+	do {
+	    next = o->op_sibling;
+	    OP *tmp = o;
+	    op_free(tmp); // just in case it's a macro
+	} while (o != orig_seq_end && (o = next));
     }
 }
 

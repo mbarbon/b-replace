@@ -8,7 +8,12 @@ use warnings;
 
 use Exporter 'import';
 
-our @EXPORT_OK = qw(replace_op replace_tree trace_op);
+our @EXPORT_OK = qw(
+    replace_op
+    replace_tree
+    replace_sequence
+    trace_op
+);
 
 use XSLoader;
 
