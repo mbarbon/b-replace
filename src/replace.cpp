@@ -353,6 +353,8 @@ void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
     {
         BINOP *binop = (BINOP *)op;
 
+        // in this case we add a stub OP to preserve the property that
+        // op->op_first->op_sibling == op->op_last
         if (binop->op_first == original && !replacement)
         {
             NewOp(42, replacement, 1, OP);
