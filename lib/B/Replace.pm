@@ -12,6 +12,7 @@ our @EXPORT_OK = qw(
     replace_op
     replace_tree
     replace_sequence
+    detach_tree
     trace_op
 );
 

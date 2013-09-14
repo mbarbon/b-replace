@@ -300,6 +300,36 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
     if ((op)->member == original)               \
         (op)->member = replacement
 
+#define REPLACE_FIRST_IF(op) \
+    if ((op)->op_first == original)             \
+        replace_first(aTHX_ cLISTOPx(op), original, replacement);
+
+#define REPLACE_LAST_IF(op) \
+    if ((op)->op_last == original)              \
+        replace_last(aTHX_ cLISTOPx(op), original, replacement);
+
+void replace_first(pTHX_ LISTOP *op, OP *original, OP *replacement)
+{
+    if (!replacement)
+        replacement = op->op_first->op_sibling;
+
+    op->op_first = replacement;
+}
+
+void replace_last(pTHX_ LISTOP *op, OP *original, OP *replacement)
+{
+    if (!replacement)
+    {
+        for (replacement = op->op_first;
+             replacement && replacement->op_sibling;
+             replacement = replacement->op_sibling)
+            if (replacement != original)
+                op->op_last = replacement;
+    }
+    else
+        op->op_last = replacement;
+}
+
 void replace_next(pTHX_ OP *op, OP *original, OP *replacement)
 {
     REPLACE_IF(op, op_next);
@@ -323,6 +353,15 @@ void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
     {
         BINOP *binop = (BINOP *)op;
 
+        if (binop->op_first == original && !replacement)
+        {
+            NewOp(42, replacement, 1, OP);
+            replacement->op_flags = OPf_WANT_VOID;
+            replacement->op_type = OP_STUB;
+            replacement->op_ppaddr = PL_ppaddr[OP_STUB];
+            replacement->op_sibling = binop->op_last;
+        }
+
         REPLACE_IF(binop, op_first);
         REPLACE_IF(binop, op_last);
     }
@@ -339,16 +378,16 @@ void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
     {
         LISTOP *listop = (LISTOP *)op;
 
-        REPLACE_IF(listop, op_first);
-        REPLACE_IF(listop, op_last);
+        REPLACE_FIRST_IF(listop);
+        REPLACE_LAST_IF(listop);
     }
         break;
     case OPc_PMOP:
     {
         PMOP *pmop = (PMOP *)op;
 
-        REPLACE_IF(pmop, op_first);
-        REPLACE_IF(pmop, op_last);
+        REPLACE_FIRST_IF(pmop);
+        REPLACE_LAST_IF(pmop);
 
         // ignore pmrepl stuff
     }
@@ -357,8 +396,8 @@ void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
     {
         LOOP *loop = (LOOP *)op;
 
-        REPLACE_IF(loop, op_first);
-        REPLACE_IF(loop, op_last);
+        REPLACE_FIRST_IF(loop);
+        REPLACE_LAST_IF(loop);
     }
         break;
     case OPc_NULL:
@@ -372,6 +411,13 @@ void replace_child(pTHX_ OP *op, OP *original, OP *replacement)
     }
 }
 
+void replace_sibling(pTHX_ OP *older_sibling, OP *original, OP *replacement)
+{
+    older_sibling->op_sibling = replacement;
+}
+
+#undef REPLACE_FIRST_IF
+#undef REPLACE_LAST_IF
 #undef REPLACE_IF
 
 void replace_op(OP *root, OP *original, OP *replacement, bool keep)
@@ -450,18 +496,20 @@ void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replac
 
     if (tree_pred.size() > 1)
         croak("Found %d predecessor for the tree, 1 expected", tree_pred.size());
-
     if (tree_pred.size())
-        replace_next(aTHX_ tree_pred.begin()->first, tree_pred.begin()->second, replacement);
+        replace_next(aTHX_ tree_pred.begin()->first, tree_pred.begin()->second, replacement ? replacement : orig_seq_end->op_next);
     if (start_opinfo.parent)
         replace_child(aTHX_ start_opinfo.parent, orig_seq_start, replacement);
     if (start_opinfo.parent)
         replace_child(aTHX_ start_opinfo.parent, orig_seq_end, replacement);
     if (start_opinfo.older_sibling)
-        start_opinfo.older_sibling->op_sibling = replacement;
+        replace_sibling(aTHX_ start_opinfo.older_sibling, orig_seq_start, replacement ? replacement : orig_seq_end->op_sibling);
 
-    replacement->op_next = orig_seq_end->op_next;
-    replacement->op_sibling = orig_seq_end->op_sibling;
+    if (replacement)
+    {
+        replacement->op_next = orig_seq_end->op_next;
+        replacement->op_sibling = orig_seq_end->op_sibling;
+    }
 
     if (!keep)
     {
@@ -484,11 +532,6 @@ void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replac
 void detach_tree(OP *root, OP *original, bool keep)
 {
     dTHX;
-    OP *o;
 
-    NewOp(42, o, 1, OP);
-    o->op_flags = OPf_WANT_VOID;
-    o->op_type = OP_STUB;
-    o->op_ppaddr = PL_ppaddr[OP_STUB];
-    replace_tree(root, original, o, keep);
+    replace_tree(root, original, 0, keep);
 }
