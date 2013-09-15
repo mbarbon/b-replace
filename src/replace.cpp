@@ -219,7 +219,6 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_pred(op, logop->op_other, links);
         fill_parent(op, logop->op_first, links);
-        fill_parent(op, logop->op_other, links);
     }
         break;
     case OPc_LISTOP:

@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 12;
+use Test::More tests => 14;
 
 use B::Replace qw(detach_tree);
 use B;
@@ -74,4 +74,25 @@ SCOPE: {
     is($add->last->name, 'const');
     is($add->first->sibling->name, 'const');
     isa_ok($add->first->sibling->sibling, 'B::NULL');
+}
+
+sub dummy5 {
+    for (1..2) {
+        $a += 1;
+    }
+}
+
+SCOPE: {
+    my $dummy = B::svref_2object(\&dummy5);
+    my $and = $dummy->START;
+
+    $and = $and->next until $and->name eq 'and';
+
+    die unless $and->other->name eq 'nextstate';
+    die unless $and->first->sibling->first->name eq 'nextstate';
+    die unless $and->first->sibling->name eq 'lineseq';
+    detach_tree($dummy->ROOT, $and->other);
+
+    is($and->other->name, 'gvsv');
+    is($and->first->sibling->first->name, 'add');
 }
