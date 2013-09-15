@@ -13,7 +13,6 @@ our @EXPORT_OK = qw(
     replace_tree
     replace_sequence
     detach_tree
-    trace_op
 );
 
 use XSLoader;

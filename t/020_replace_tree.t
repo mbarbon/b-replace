@@ -5,7 +5,7 @@ use warnings;
 
 use Test::More tests => 5;
 
-use B::Replace qw(replace_tree trace_op replace_sequence);
+use B::Replace qw(replace_tree replace_sequence);
 use B::Generate;
 use B;
 

@@ -13,10 +13,3 @@
         sv_setiv(newSVrv($arg, "B::OP"), PTR2IV($var));
     %};
 };
-
-%typemap{TRACEOP *}{OP}{
-    %xs_type{T_TRACEOP};
-    %xs_output_code{%
-        sv_setiv(newSVrv($arg, "B::TRACEOP"), PTR2IV($var));
-    %};
-};

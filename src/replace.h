@@ -4,15 +4,6 @@
 #include "EXTERN.h"
 #include "perl.h"
 
-struct TRACEOP
-{
-    BASEOP;
-    int count;
-};
-
-TRACEOP *trace_op(OP *next);
-void register_op(pTHX);
-
 void replace_op(OP *root, OP *original, OP *replacement, bool keep = false);
 void replace_tree(OP *root, OP *original, OP *replacement, bool keep = false);
 void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep = false);

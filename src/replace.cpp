@@ -22,44 +22,6 @@ typedef std::vector<OP *> OpVector;
 typedef std::tr1::unordered_set<OP *> OpSet;
 typedef std::tr1::unordered_map<OP *, OP *> OpHash;
 
-#if PERL_API_VERSION >= 14
-static XOP trace_xop;
-#endif
-
-static OP *trace_pp(pTHX)
-{
-    TRACEOP *op = (TRACEOP *)PL_op;
-
-    ++op->count;
-
-    return op->op_next;
-}
-
-void register_op(pTHX)
-{
-#if PERL_API_VERSION >= 14
-    XopENTRY_set(&trace_xop, xop_name, "myxop");
-    XopENTRY_set(&trace_xop, xop_desc, "Useless custom op");
-    XopENTRY_set(&trace_xop, xop_class, OA_BASEOP);
-
-    Perl_custom_op_register(aTHX_ trace_pp, &trace_xop);
-#endif
-}
-
-TRACEOP *trace_op(OP *next)
-{
-    dTHX;
-    TRACEOP *op;
-
-    NewOp(1101, op, 1, TRACEOP);
-    op->op_type = OP_CUSTOM;
-    op->op_ppaddr = trace_pp;
-    op->op_next = next;
-    op->count = 0;
-
-    return op;
-}
-
 typedef enum {
     OPc_NULL,	/* 0 */
     OPc_BASEOP,	/* 1 */
@@ -440,6 +402,9 @@ void replace_op(OP *root, OP *original, OP *replacement, bool keep)
         replace_child(aTHX_ opinfo.parent, original, replacement);
     if (opinfo.older_sibling)
         opinfo.older_sibling->op_sibling = replacement;
+
+    replacement->op_next = original->op_next;
+    replacement->op_sibling = original->op_sibling;
 
     if (!keep)
         op_free(original);
