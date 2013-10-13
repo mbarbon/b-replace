@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 5;
+use Test::More tests => 11;
 
 use B::Replace qw(replace_tree replace_sequence);
 use B::Generate;
@@ -50,4 +50,31 @@ SCOPE: {
 
     is(dummy2(12), 12);
     is(dummy2(42), 42);
+}
+
+sub dummy3 {
+    my ($a, $b) = @_;
+    my $c = ((($a += 1) && ($b += 2)), 7);
+    return $a + $b + $c;
+}
+
+SCOPE: {
+    is(dummy3(1, 2), 13);
+    is(dummy3(-1, 2), 9);
+    is(dummy3(0, -2), 8);
+
+    my $dummy = B::svref_2object(\&dummy3);
+    my $const = B::SVOP->new('const', 0, 6);
+    my $seven = $dummy->START;
+
+    $seven = $seven->next until $seven->name eq 'and';
+    $seven = $seven->next;
+
+    $const->next($seven->next);
+
+    replace_tree($dummy->ROOT, $seven, $const);
+
+    is(dummy3(1, 2), 12);
+    is(dummy3(-1, 2), 8);
+    is(dummy3(0, -2), 7);
 }

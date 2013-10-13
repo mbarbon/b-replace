@@ -5,21 +5,21 @@
 #include <tr1/unordered_map>
 #include <tr1/unordered_set>
 
+typedef std::vector<OP *> OpVector;
+typedef std::tr1::unordered_set<OP *> OpSet;
+
 struct OpInfo
 {
-    // TODO some OPs have multiple predecessors (end of conditional branches)
-    OP *pred;
+    OpSet pred;
     OP *older_sibling;
     OP *parent;
 
     OpInfo() :
-        pred(0), older_sibling(0), parent(0)
+        older_sibling(0), parent(0)
     { }
 };
 
 typedef std::tr1::unordered_map<OP *, OpInfo> LinkInfo;
-typedef std::vector<OP *> OpVector;
-typedef std::tr1::unordered_set<OP *> OpSet;
 typedef std::tr1::unordered_map<OP *, OP *> OpHash;
 
 typedef enum {
@@ -161,7 +161,7 @@ void fill_pred(OP *op, OP *next, LinkInfo &links)
     if (!next || op->op_type == 0)
         return;
 
-    links[next].pred = op;
+    links[next].pred.insert(op);
 }
 
 void fill_parent(OP *op, OP *kid, LinkInfo &links)
@@ -395,8 +395,10 @@ void replace_op(OP *root, OP *original, OP *replacement, bool keep)
         croak("Did not find original op in the tree");
     OpInfo opinfo = it->second;
 
-    if (opinfo.pred)
-        replace_next(aTHX_ opinfo.pred, original, replacement);
+    if (opinfo.pred.size())
+        for (OpSet::iterator it = opinfo.pred.begin(), end = opinfo.pred.end();
+             it != end; ++it)
+            replace_next(aTHX_ *it, original, replacement);
     if (opinfo.parent)
         replace_child(aTHX_ opinfo.parent, original, replacement);
     if (opinfo.older_sibling)
@@ -452,18 +454,17 @@ void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replac
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
     {
-        if (links[*it].pred)
-            tree_pred.insert(std::make_pair(links[*it].pred, *it));
+        for (OpSet::iterator pred = links[*it].pred.begin(), end = links[*it].pred.end(); pred != end; ++pred)
+            tree_pred.insert(std::make_pair(*pred, *it));
     }
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
          it != end; ++it)
         tree_pred.erase(*it);
 
-    if (tree_pred.size() > 1)
-        croak("Found %d predecessor for the tree, 1 expected", tree_pred.size());
-    if (tree_pred.size())
-        replace_next(aTHX_ tree_pred.begin()->first, tree_pred.begin()->second, replacement ? replacement : orig_seq_end->op_next);
+    for (OpHash::iterator it = tree_pred.begin(), end = tree_pred.end();
+         it != end; ++it)
+        replace_next(aTHX_ it->first, it->second, replacement ? replacement : orig_seq_end->op_next);
     if (start_opinfo.parent)
         replace_child(aTHX_ start_opinfo.parent, orig_seq_start, replacement);
     if (start_opinfo.parent)
