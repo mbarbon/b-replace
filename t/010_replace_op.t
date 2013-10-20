@@ -21,7 +21,7 @@ my $add = $dummy->START;
 
 $add = $add->next until $add->name eq 'add';
 
-replace_op($dummy->ROOT, $add->first, $const);
+replace_op(\&dummy, $add->first, $const);
 
 is(dummy(1, 2), 5);
 is(dummy(1, $dummy), 3 + $dummy);

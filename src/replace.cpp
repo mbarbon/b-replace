@@ -383,6 +383,14 @@ void replace_sibling(pTHX_ OP *older_sibling, OP *original, OP *replacement)
 #undef REPLACE_LAST_IF
 #undef REPLACE_IF
 
+void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
+{
+    if (CvSTART(cv) == original)
+        CvSTART(cv) = replacement;
+
+    replace_op(CvROOT(cv), original, replacement, keep);
+}
+
 void replace_op(OP *root, OP *original, OP *replacement, bool keep)
 {
     dTHX;
@@ -423,9 +431,25 @@ void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
     }
 }
 
+void replace_tree(CV *cv, OP *original, OP *replacement, bool keep)
+{
+    if (CvSTART(cv) == original)
+        CvSTART(cv) = replacement;
+
+    replace_tree(CvROOT(cv), original, replacement, keep);
+}
+
 void replace_tree(OP *root, OP *original, OP *replacement, bool keep)
 {
     replace_sequence(root, original, original, replacement, keep);
+}
+
+void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+{
+    if (CvSTART(cv) == orig_seq_start)
+        CvSTART(cv) = replacement;
+
+    replace_sequence(CvROOT(cv), orig_seq_start, orig_seq_end, replacement);
 }
 
 void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
@@ -494,6 +518,14 @@ void replace_sequence(OP *root, OP *orig_seq_start, OP *orig_seq_end, OP *replac
 	    op_free(tmp); // just in case it's a macro
 	} while (o != orig_seq_end && (o = next));
     }
+}
+
+void detach_tree(CV *cv, OP *original, bool keep)
+{
+    if (CvSTART(cv) == original)
+        CvSTART(cv) = original->op_next;
+
+    detach_tree(CvROOT(cv), original, keep);
 }
 
 void detach_tree(OP *root, OP *original, bool keep)

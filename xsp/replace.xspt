@@ -1,3 +1,14 @@
+%typemap{CV *}{simple}{
+    %xs_type{T_CV};
+    %xs_input_code{%
+        if (SvROK($arg) && SvTYPE(SvRV($arg)) == SVt_PVCV) {
+            $var = (CV *) SvRV($arg);
+        }
+        else
+            croak(\"$var is not a code reference\")
+    %};
+};
+
 %typemap{OP *}{simple}{
     %name{OP};
     %xs_type{T_OP};

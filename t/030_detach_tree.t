@@ -18,7 +18,7 @@ SCOPE: {
 
     $pushmark = $pushmark->next until $pushmark->name eq 'pushmark';
 
-    detach_tree($dummy->ROOT, $pushmark->sibling->sibling);
+    detach_tree(\&dummy1, $pushmark->sibling->sibling);
 
     is_deeply([dummy1()], [1, 3]);
     is($pushmark->sibling->sibling->name, 'const');
@@ -34,7 +34,7 @@ SCOPE: {
 
     $return = $return->next until $return->name eq 'return';
 
-    detach_tree($dummy->ROOT, $return->first);
+    detach_tree(\&dummy2, $return->first);
 
     is($return->first->first->name, 'gvsv', 'first op patched out correctly');
     is($return->last->name, 'const');
@@ -51,7 +51,7 @@ SCOPE: {
 
     $return = $return->next until $return->name eq 'return';
 
-    detach_tree($dummy->ROOT, $return->last);
+    detach_tree(\&dummy3, $return->last);
 
     is($return->first->sibling->name, 'const');
     is($return->last->first->name, 'gvsv', 'last op patched out correctly');
@@ -68,7 +68,7 @@ SCOPE: {
 
     $add = $add->next until $add->name eq 'add';
 
-    detach_tree($dummy->ROOT, $add->first);
+    detach_tree(\&dummy4, $add->first);
 
     is($add->first->name, 'stub');
     is($add->last->name, 'const');
@@ -91,7 +91,7 @@ SCOPE: {
     die unless $and->other->name eq 'nextstate';
     die unless $and->first->sibling->first->name eq 'nextstate';
     die unless $and->first->sibling->name eq 'lineseq';
-    detach_tree($dummy->ROOT, $and->other);
+    detach_tree(\&dummy5, $and->other);
 
     is($and->other->name, 'gvsv');
     is($and->first->sibling->first->name, 'add');

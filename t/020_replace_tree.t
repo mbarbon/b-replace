@@ -21,7 +21,7 @@ SCOPE: {
     $add = $add->next until $add->name eq 'add';
     $const->next($add->next);
 
-    replace_tree($dummy->ROOT, $add, $const);
+    replace_tree(\&dummy, $add, $const);
 
     is(dummy(1, 2), 3);
     is(dummy(3, 4), 3);
@@ -46,7 +46,7 @@ SCOPE: {
     my $sassign = $nextstate->sibling->sibling->sibling;
     $const->next($sassign->next);
 
-    replace_sequence($dummy->ROOT, $nextstate, $sassign, $const);
+    replace_sequence(\&dummy2, $nextstate, $sassign, $const);
 
     is(dummy2(12), 12);
     is(dummy2(42), 42);
@@ -72,7 +72,7 @@ SCOPE: {
 
     $const->next($seven->next);
 
-    replace_tree($dummy->ROOT, $seven, $const);
+    replace_tree(\&dummy3, $seven, $const);
 
     is(dummy3(1, 2), 12);
     is(dummy3(-1, 2), 8);
