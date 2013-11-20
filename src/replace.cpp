@@ -245,6 +245,9 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
 
         fill_parent(op, loop->op_first, links);
         fill_parent(op, loop->op_last, links);
+        fill_pred(op, loop->op_redoop, links);
+        fill_pred(op, loop->op_lastop, links);
+        fill_pred(op, loop->op_nextop, links);
     }
         break;
     case OPc_NULL:
@@ -294,6 +297,11 @@ void replace_last(pTHX_ LISTOP *op, OP *original, OP *replacement)
 void replace_next(pTHX_ OP *op, OP *original, OP *replacement)
 {
     REPLACE_IF(op, op_next);
+    if (cc_opclass(aTHX_ op) == OPc_LOOP) {
+        REPLACE_IF((LOOP*)op, op_redoop);
+        REPLACE_IF((LOOP*)op, op_nextop);
+        REPLACE_IF((LOOP*)op, op_lastop);
+    }
 
     if (cc_opclass(aTHX_ op) == OPc_LOGOP)
         REPLACE_IF(cLOGOPx(op), op_other);
