@@ -13,10 +13,13 @@ our @EXPORT_OK = qw(
     replace_tree
     replace_sequence
     detach_tree
+    study_sub
 );
 
 use XSLoader;
 
 XSLoader::load(__PACKAGE__);
+
+sub study_sub { return B::Replace::CvInfo->new($_[0]) }
 
 1;

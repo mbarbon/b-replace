@@ -2,24 +2,8 @@
 
 #include <vector>
 
-#include <tr1/unordered_map>
-#include <tr1/unordered_set>
-
 typedef std::vector<OP *> OpVector;
-typedef std::tr1::unordered_set<OP *> OpSet;
 
-struct OpInfo
-{
-    OpSet pred;
-    OP *older_sibling;
-    OP *parent;
-
-    OpInfo() :
-        older_sibling(0), parent(0)
-    { }
-};
-
-typedef std::tr1::unordered_map<OP *, OpInfo> LinkInfo;
 typedef std::tr1::unordered_map<OP *, OP *> OpHash;
 
 typedef enum {
@@ -412,13 +396,8 @@ void replace_sibling(pTHX_ OP *older_sibling, OP *original, OP *replacement)
 #undef REPLACE_LAST_IF
 #undef REPLACE_IF
 
-void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
+void replace_op(pTHX_ CV *cv, LinkInfo &links, OP *original, OP *replacement, bool keep)
 {
-    dTHX;
-    LinkInfo links;
-
-    fill_linkinfo(aTHX_ CvROOT(cv), links);
-
     LinkInfo::iterator it = links.find(original);
     if (it == links.end())
         croak("Did not find original op in the tree");
@@ -448,6 +427,16 @@ void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
         op_free(original);
 }
 
+void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
+{
+    dTHX;
+
+    LinkInfo links;
+
+    fill_linkinfo(aTHX_ CvROOT(cv), links);
+    replace_op(aTHX_ cv, links, original, replacement, keep);
+}
+
 void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
 {
     if (op->op_type != OP_NULL)
@@ -460,15 +449,8 @@ void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
     }
 }
 
-void replace_tree(CV *cv, OP *original, OP *replacement, bool keep)
+void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
 {
-    replace_sequence(cv, original, original, replacement, keep);
-}
-
-void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
-{
-    dTHX;
-    LinkInfo links;
     OpVector nodes;
     OpHash tree_pred;
     OP *start = replacement;
@@ -479,8 +461,6 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
         start = cUNOPx(start)->op_first;
     if (!start)
         start = orig_seq_end->op_next;
-
-    fill_linkinfo(aTHX_ CvROOT(cv), links);
 
     LinkInfo::iterator start_seq_it = links.find(orig_seq_start);
     if (start_seq_it == links.end())
@@ -560,9 +540,75 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
     }
 }
 
+void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+{
+    dTHX;
+
+    LinkInfo links;
+
+    fill_linkinfo(aTHX_ CvROOT(cv), links);
+    replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, keep);
+}
+
+void replace_tree(CV *cv, OP *original, OP *replacement, bool keep)
+{
+    dTHX;
+
+    LinkInfo links;
+
+    fill_linkinfo(aTHX_ CvROOT(cv), links);
+    replace_sequence(aTHX_ cv, links, original, original, replacement, keep);
+}
+
 void detach_tree(CV *cv, OP *original, bool keep)
 {
     dTHX;
 
-    replace_tree(cv, original, 0, keep);
+    LinkInfo links;
+
+    fill_linkinfo(aTHX_ CvROOT(cv), links);
+    replace_sequence(aTHX_ cv, links, original, original, 0, keep);
+}
+
+CvInfo::CvInfo(CV *_cv) : cv(_cv)
+{
+    dTHX;
+
+    SvREFCNT_inc(cv);
+    fill_linkinfo(aTHX_ CvROOT(cv), links);
+}
+
+CvInfo::~CvInfo()
+{
+    dTHX;
+
+    SvREFCNT_dec(cv);
+}
+
+void CvInfo::replace_op(OP *original, OP *replacement, bool keep)
+{
+    dTHX;
+
+    ::replace_op(aTHX_ cv, links, original, replacement, keep);
+}
+
+void CvInfo::replace_tree(OP *original, OP *replacement, bool keep)
+{
+    dTHX;
+
+    ::replace_sequence(aTHX_ cv, links, original, original, replacement, keep);
+}
+
+void CvInfo::replace_sequence(OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+{
+    dTHX;
+
+    ::replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, keep);
+}
+
+void CvInfo::detach_tree(OP *original, bool keep)
+{
+    dTHX;
+
+    ::replace_sequence(aTHX_ cv, links, original, original, 0, keep);
 }

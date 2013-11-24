@@ -1,3 +1,5 @@
+%loadplugin{feature::default_xs_typemap};
+
 %typemap{CV *}{simple}{
     %xs_type{T_CV};
     %xs_input_code{%
