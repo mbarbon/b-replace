@@ -444,6 +444,14 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
     LinkInfo links;
     OpVector nodes;
     OpHash tree_pred;
+    OP *start = replacement;
+
+    // handle the case when the replacement is a full tree rather than
+    // a single op
+    while (start && start->op_flags & OPf_KIDS)
+        start = cUNOPx(start)->op_first;
+    if (!start)
+        start = orig_seq_end->op_next;
 
     fill_linkinfo(aTHX_ CvROOT(cv), links);
 
@@ -467,7 +475,7 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
         for (OpSet::iterator pred = links[*it].pred.begin(), end = links[*it].pred.end(); pred != end; ++pred)
             tree_pred.insert(std::make_pair(*pred, *it));
         if (*it == CvSTART(cv))
-            CvSTART(cv) = replacement ? replacement : orig_seq_end->op_next;
+            CvSTART(cv) = start;
     }
 
     for (OpVector::iterator it = nodes.begin(), end = nodes.end();
@@ -476,7 +484,7 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
 
     for (OpHash::iterator it = tree_pred.begin(), end = tree_pred.end();
          it != end; ++it)
-        replace_next(aTHX_ it->first, it->second, replacement ? replacement : orig_seq_end->op_next);
+        replace_next(aTHX_ it->first, it->second, start);
     if (start_opinfo.parent)
         replace_child(aTHX_ start_opinfo.parent, orig_seq_start, replacement);
     if (start_opinfo.parent)
