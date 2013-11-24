@@ -173,6 +173,7 @@ void fill_parent(OP *op, OP *kid, LinkInfo &links)
 }
 
 void fill_linkinfo(pTHX_ OP *op, LinkInfo &links);
+void clear_linkinfo(pTHX_ OP *op, LinkInfo &links);
 
 void fill_older_sibling(pTHX_ OP *firstborn, LinkInfo &links)
 {
@@ -257,6 +258,26 @@ void fill_linkinfo(pTHX_ OP *op, LinkInfo &links)
     case OPc_PVOP:
     case OPc_COP:
         break;
+    }
+}
+
+void clear_linkinfo(pTHX_ OP *op, LinkInfo &links)
+{
+    links.erase(op);
+
+    links[op->op_next].pred.erase(op);
+    if (cc_opclass(aTHX_ op) == OPc_LOOP) {
+        links[cLOOPx(op)->op_redoop].pred.erase(op);
+        links[cLOOPx(op)->op_nextop].pred.erase(op);
+        links[cLOOPx(op)->op_lastop].pred.erase(op);
+    }
+    if (cc_opclass(aTHX_ op) == OPc_LOGOP)
+        links[cLOGOPx(op)->op_other].pred.erase(op);
+
+    if (op->op_flags & OPf_KIDS)
+    {
+        for (OP *curr = cUNOPx(op)->op_first; curr; curr = curr->op_sibling)
+            clear_linkinfo(aTHX_ curr, links);
     }
 }
 
@@ -412,10 +433,16 @@ void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
     if (opinfo.parent)
         replace_child(aTHX_ opinfo.parent, original, replacement);
     if (opinfo.older_sibling)
-        opinfo.older_sibling->op_sibling = replacement;
+        replace_sibling(aTHX_ opinfo.older_sibling, original, replacement);
 
     replacement->op_next = original->op_next;
     replacement->op_sibling = original->op_sibling;
+
+    links.erase(original);
+    links[replacement] = opinfo;
+    fill_linkinfo(aTHX_ replacement, links);
+    if (original->op_sibling)
+        links[original->op_sibling].older_sibling = replacement;
 
     if (!keep)
         op_free(original);
@@ -496,6 +523,15 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
     {
         replacement->op_next = orig_seq_end->op_next;
         replacement->op_sibling = orig_seq_end->op_sibling;
+
+        for (OpHash::iterator it = tree_pred.begin(), end = tree_pred.end();
+             it != end; ++it)
+            links[start].pred.insert(it->first);
+        links[replacement].parent = start_opinfo.parent;
+        links[replacement].older_sibling = start_opinfo.older_sibling;
+        fill_linkinfo(aTHX_ replacement, links);
+        if (orig_seq_end->op_sibling)
+            links[orig_seq_end->op_sibling].older_sibling = replacement;
     }
 
     if (!keep)
@@ -511,7 +547,15 @@ void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacem
 	do {
 	    next = o->op_sibling;
 	    OP *tmp = o;
+            clear_linkinfo(aTHX_ tmp, links);
 	    op_free(tmp); // just in case it's a macro
+	} while (o != orig_seq_end && (o = next));
+    } else {
+	OP *o = orig_seq_start;
+	OP *next;
+	do {
+	    next = o->op_sibling;
+            clear_linkinfo(aTHX_ o, links);
 	} while (o != orig_seq_end && (o = next));
     }
 }
