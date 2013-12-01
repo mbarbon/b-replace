@@ -396,8 +396,10 @@ void replace_sibling(pTHX_ OP *older_sibling, OP *original, OP *replacement)
 #undef REPLACE_LAST_IF
 #undef REPLACE_IF
 
-void replace_op(pTHX_ CV *cv, LinkInfo &links, OP *original, OP *replacement, bool keep)
+void replace_op(pTHX_ CV *cv, LinkInfo &links, OP *original, OP *replacement, int flags)
 {
+    bool keep = flags & KEEP_OPS;
+
     LinkInfo::iterator it = links.find(original);
     if (it == links.end())
         croak("Did not find original op in the tree");
@@ -427,14 +429,14 @@ void replace_op(pTHX_ CV *cv, LinkInfo &links, OP *original, OP *replacement, bo
         op_free(original);
 }
 
-void replace_op(CV *cv, OP *original, OP *replacement, bool keep)
+void replace_op(CV *cv, OP *original, OP *replacement, int flags)
 {
     dTHX;
 
     LinkInfo links;
 
     fill_linkinfo(aTHX_ CvROOT(cv), links);
-    replace_op(aTHX_ cv, links, original, replacement, keep);
+    replace_op(aTHX_ cv, links, original, replacement, flags);
 }
 
 void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
@@ -449,11 +451,12 @@ void tree_nodes(pTHX_ OP *op, OpVector &accumulator)
     }
 }
 
-void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, int flags)
 {
     OpVector nodes;
     OpHash tree_pred;
     OP *start = replacement;
+    bool keep = flags & KEEP_OPS;
 
     // handle the case when the replacement is a full tree rather than
     // a single op
@@ -516,11 +519,12 @@ void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *ori
 
     if (!keep)
     {
-        // TODO this code is becoming so tied to Perl::JIT that
-        //      it makes a lot of sense to just move it
-        for (OpVector::iterator it = nodes.begin(), end = nodes.end();
-             it != end; ++it)
-            (*it)->op_targ = 0;
+        if (flags & KEEP_TARGETS)
+        {
+            for (OpVector::iterator it = nodes.begin(), end = nodes.end();
+                 it != end; ++it)
+                (*it)->op_targ = 0;
+        }
 
 	OP *o = orig_seq_start;
 	OP *next;
@@ -540,34 +544,34 @@ void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *ori
     }
 }
 
-void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, int flags)
 {
     dTHX;
 
     LinkInfo links;
 
     fill_linkinfo(aTHX_ CvROOT(cv), links);
-    replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, keep);
+    replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, flags);
 }
 
-void replace_tree(CV *cv, OP *original, OP *replacement, bool keep)
+void replace_tree(CV *cv, OP *original, OP *replacement, int flags)
 {
     dTHX;
 
     LinkInfo links;
 
     fill_linkinfo(aTHX_ CvROOT(cv), links);
-    replace_sequence(aTHX_ cv, links, original, original, replacement, keep);
+    replace_sequence(aTHX_ cv, links, original, original, replacement, flags);
 }
 
-void detach_tree(CV *cv, OP *original, bool keep)
+void detach_tree(CV *cv, OP *original, int flags)
 {
     dTHX;
 
     LinkInfo links;
 
     fill_linkinfo(aTHX_ CvROOT(cv), links);
-    replace_sequence(aTHX_ cv, links, original, original, 0, keep);
+    replace_sequence(aTHX_ cv, links, original, original, 0, flags);
 }
 
 CvInfo::CvInfo(CV *_cv) : cv(_cv)
@@ -585,30 +589,30 @@ CvInfo::~CvInfo()
     SvREFCNT_dec(cv);
 }
 
-void CvInfo::replace_op(OP *original, OP *replacement, bool keep)
+void CvInfo::replace_op(OP *original, OP *replacement, int flags)
 {
     dTHX;
 
-    ::replace_op(aTHX_ cv, links, original, replacement, keep);
+    ::replace_op(aTHX_ cv, links, original, replacement, flags);
 }
 
-void CvInfo::replace_tree(OP *original, OP *replacement, bool keep)
+void CvInfo::replace_tree(OP *original, OP *replacement, int flags)
 {
     dTHX;
 
-    ::replace_sequence(aTHX_ cv, links, original, original, replacement, keep);
+    ::replace_sequence(aTHX_ cv, links, original, original, replacement, flags);
 }
 
-void CvInfo::replace_sequence(OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep)
+void CvInfo::replace_sequence(OP *orig_seq_start, OP *orig_seq_end, OP *replacement, int flags)
 {
     dTHX;
 
-    ::replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, keep);
+    ::replace_sequence(aTHX_ cv, links, orig_seq_start, orig_seq_end, replacement, flags);
 }
 
-void CvInfo::detach_tree(OP *original, bool keep)
+void CvInfo::detach_tree(OP *original, int flags)
 {
     dTHX;
 
-    ::replace_sequence(aTHX_ cv, links, original, original, 0, keep);
+    ::replace_sequence(aTHX_ cv, links, original, original, 0, flags);
 }

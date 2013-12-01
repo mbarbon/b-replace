@@ -4,18 +4,18 @@
 
 #include "replace.h"
 
-void replace_op(CV *cv, OP *original, OP *replacement, bool keep = false);
-void replace_tree(CV *cv, OP *original, OP *replacement, bool keep = false);
-void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep = false);
-void detach_tree(CV *cv, OP *original, bool keep = false);
+void replace_op(CV *cv, OP *original, OP *replacement, int flags = 0);
+void replace_tree(CV *cv, OP *original, OP *replacement, int flags = 0);
+void replace_sequence(CV *cv, OP *orig_seq_start, OP *orig_seq_end, OP *replacement, int flags = 0);
+void detach_tree(CV *cv, OP *original, int flags = 0);
 
 %name{B::Replace::CvInfo} class CvInfo
 {
     CvInfo(CV *cv);
     ~CvInfo();
 
-    void replace_op(OP *original, OP *replacement, bool keep = false);
-    void replace_tree(OP *original, OP *replacement, bool keep = false);
-    void replace_sequence(OP *orig_seq_start, OP *orig_seq_end, OP *replacement, bool keep = false);
-    void detach_tree(OP *original, bool keep = false);
+    void replace_op(OP *original, OP *replacement, int flags = 0);
+    void replace_tree(OP *original, OP *replacement, int flags = 0);
+    void replace_sequence(OP *orig_seq_start, OP *orig_seq_end, OP *replacement, int flags = 0);
+    void detach_tree(OP *original, int flags = 0);
 };

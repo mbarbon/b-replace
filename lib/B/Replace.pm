@@ -14,7 +14,15 @@ our @EXPORT_OK = qw(
     replace_sequence
     detach_tree
     study_sub
+
+    KEEP_OPS
+    KEEP_TARGETS
 );
+
+use constant {
+   KEEP_OPS     => 1,
+   KEEP_TARGETS => 2,
+};
 
 use XSLoader;
 
