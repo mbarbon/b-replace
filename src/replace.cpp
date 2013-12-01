@@ -140,6 +140,25 @@ cc_opclass(pTHX_ const OP *o)
     return OPc_BASEOP;
 }
 
+void assign_next(OP *op, OP *next)
+{
+    switch (op->op_type)
+    {
+        // documented as needing manual attention, avoid breaking them
+    case OP_COND_EXPR:
+    case OP_AND:
+    case OP_OR:
+    case OP_DOR:
+    case OP_ANDASSIGN:
+    case OP_ORASSIGN:
+    case OP_DORASSIGN:
+        break;
+    default:
+        op->op_next = next;
+        break;
+    }
+}
+
 void fill_pred(OP *op, OP *next, LinkInfo &links)
 {
     if (!next || op->op_type == 0)
@@ -416,7 +435,7 @@ void replace_op(pTHX_ CV *cv, LinkInfo &links, OP *original, OP *replacement, in
     if (opinfo.older_sibling)
         replace_sibling(aTHX_ opinfo.older_sibling, original, replacement);
 
-    replacement->op_next = original->op_next;
+    assign_next(replacement, original->op_next);
     replacement->op_sibling = original->op_sibling;
 
     links.erase(original);
@@ -504,7 +523,7 @@ void replace_sequence(pTHX_ CV *cv, LinkInfo &links, OP *orig_seq_start, OP *ori
 
     if (replacement)
     {
-        replacement->op_next = orig_seq_end->op_next;
+        assign_next(replacement, orig_seq_end->op_next);
         replacement->op_sibling = orig_seq_end->op_sibling;
 
         for (OpHash::iterator it = tree_pred.begin(), end = tree_pred.end();
