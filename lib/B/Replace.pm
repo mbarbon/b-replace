@@ -149,7 +149,7 @@ If in doubt, try with the functional interface (but please report the bug).
 
 =item Don't modify a subroutine while it's being executed/traversed
 
-Includes executed in differen threads or walked using one of the
+Includes executed in different threads or walked using one of the
 C<walkoptree> variants.
 
 =back
